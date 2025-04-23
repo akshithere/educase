@@ -15,11 +15,20 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 exports.addSchool = async (req, res) => {
   try {
     const { name, address, latitude, longitude } = req.body;
-    if (!name || !address || !latitude || !longitude) {
+
+    // Basic validation
+    if (!name || !address || latitude === undefined || longitude === undefined) {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
-    const school = await School.create({ name, address, latitude, longitude });
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+
+    if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      return res.status(400).json({ message: 'Invalid latitude or longitude values' });
+    }
+
+    const school = await School.create({ name, address, latitude: lat, longitude: lon });
     res.status(201).json({ message: 'School added successfully', id: school.id });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -29,13 +38,17 @@ exports.addSchool = async (req, res) => {
 exports.listSchools = async (req, res) => {
   try {
     const { latitude, longitude } = req.query;
-    if (!latitude || !longitude) {
-      return res.status(400).json({ message: 'Latitude and Longitude required' });
+
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+
+    if (!latitude || !longitude || isNaN(lat) || isNaN(lon)) {
+      return res.status(400).json({ message: 'Valid latitude and longitude query params are required' });
     }
 
     const schools = await School.findAll();
     const schoolsWithDistance = schools.map(school => {
-      const distance = calculateDistance(latitude, longitude, school.latitude, school.longitude);
+      const distance = calculateDistance(lat, lon, school.latitude, school.longitude);
       return { ...school.toJSON(), distance };
     });
 
@@ -44,4 +57,8 @@ exports.listSchools = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+};
+
+exports.healthCheck = (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'API is healthy, it may take some time because it is deploye on the free instance of render.com and it takes some time to spin up the instance' });
 };
